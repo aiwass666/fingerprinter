@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser Fingerprint Demo</title>
+    <meta name="description" content="Browser Fingerprint Demo. Made by Aiwass666">
+    <!-- Use Tailwind CSS for a clean, responsive design -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles to enhance the demo's appearance */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .data-card {
+            @apply bg-white p-6 rounded-lg shadow-md transition-shadow hover:shadow-lg;
+        }
+        .data-header {
+            @apply text-lg font-bold text-gray-800 border-b pb-2 mb-4;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 flex items-center justify-center min-h-screen">
+    <div class="container max-w-5xl mx-auto">
+        <h1 class="text-4xl font-extrabold text-center text-gray-900 mb-6 md:mb-10">Browser Fingerprinting Demo</h1>
+        <p class="text-center text-gray-600 mb-8">This page collects various data points from your browser and system to create a unique "fingerprint."</p>
+
+        <div id="data-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Data will be dynamically inserted here by JavaScript -->
+        </div>
+
+        <!-- This section will contain the final hash card -->
+        <div class="mt-8">
+            <div class="data-card">
+                <h2 class="data-header text-center">Final Unique Fingerprint Hash</h2>
+                <p id="final-hash" class="text-gray-900 text-2xl font-mono break-all text-center">
+                    Generating...
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Use a self-invoking anonymous function to avoid polluting the global scope
+        (async function() {
+            // A helper function to create and append data cards for simple text values
+            function createDataCard(title, value) {
+                const container = document.getElementById('data-container');
+                const card = document.createElement('div');
+                card.className = 'data-card';
+
+                const header = document.createElement('h2');
+                header.className = 'data-header';
+                header.textContent = title;
+
+                const content = document.createElement('p');
+                content.className = 'text-gray-600 break-words';
+                content.textContent = value || 'Not available'; // Handle cases where data is null or undefined
+
+                card.appendChild(header);
+                card.appendChild(content);
+                container.appendChild(card);
+            }
+
+            // Function to generate the Canvas Fingerprint (Base64)
+            function getCanvasFingerprint() {
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 256;
+                    canvas.height = 128;
+                    const ctx = canvas.getContext('2d');
+
+                    // Draw unique text with specific settings
+                    ctx.textBaseline = 'top';
+                    ctx.font = '16px Arial';
+                    ctx.textBaseline = 'alphabetic';
+                    ctx.fillStyle = '#f60';
+                    ctx.fillRect(125, 1, 62, 20);
+                    ctx.fillStyle = '#069';
+                    ctx.fillText('Browser Fingerprint Demo', 2, 15);
+                    ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
+                    ctx.fillText('Hello World', 4, 30);
+
+                    // To make it more unique, add a shadow effect
+                    ctx.shadowColor = 'red';
+                    ctx.shadowBlur = 10;
+                    ctx.shadowOffsetX = 4;
+                    ctx.shadowOffsetY = 4;
+                    ctx.fillText('Shadow Test', 8, 50);
+
+                    // Return the data URL of the canvas content
+                    return canvas.toDataURL();
+                } catch (e) {
+                    console.error('Error generating canvas fingerprint:', e);
+                    return '';
+                }
+            }
+
+            // Function to get the WebGL Vendor and Renderer
+            function getWebglVendorAndRenderer() {
+                try {
+                    const canvas = document.createElement('canvas');
+                    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                    if (!gl) {
+                        return 'WebGL not supported';
+                    }
+                    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                    const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
+                    const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+                    return `Vendor: ${vendor}, Renderer: ${renderer}`;
+                } catch (e) {
+                    console.error('Error generating WebGL fingerprint:', e);
+                    return 'Error generating fingerprint';
+                }
+            }
+
+            // Function to get a more advanced WebGL hash by rendering and hashing pixels
+            function getAdvancedWebglFingerprint() {
+                try {
+                    const canvas = document.createElement('canvas');
+                    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                    if (!gl) {
+                        return 'WebGL not supported';
+                    }
+
+                    // A simple shader to render a color pattern
+                    const vertexShaderSource = `attribute vec4 a_position; void main() { gl_Position = a_position; }`;
+                    const fragmentShaderSource = `precision mediump float; void main() { gl_FragColor = vec4(0.5, 0.5, 0.5, 1.0); }`;
+
+                    const createShader = (type, source) => {
+                        const shader = gl.createShader(type);
+                        gl.shaderSource(shader, source);
+                        gl.compileShader(shader);
+                        return shader;
+                    };
+
+                    const program = gl.createProgram();
+                    gl.attachShader(program, createShader(gl.VERTEX_SHADER, vertexShaderSource));
+                    gl.attachShader(program, createShader(gl.FRAGMENT_SHADER, fragmentShaderSource));
+                    gl.linkProgram(program);
+                    gl.useProgram(program);
+
+                    // Render to the canvas and read back pixels
+                    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+                    gl.clear(gl.COLOR_BUFFER_BIT);
+
+                    const pixels = new Uint8Array(gl.drawingBufferWidth * gl.drawingBufferHeight * 4);
+                    gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+
+                    // Simple hash from pixel data
+                    let hash = 0;
+                    for (let i = 0; i < pixels.length; i++) {
+                        hash += pixels[i];
+                    }
+                    return hash.toString();
+                } catch (e) {
+                    console.error('Error generating advanced WebGL fingerprint:', e);
+                    return 'Error generating fingerprint';
+                }
+            }
+
+            // Function to get GPU features
+            function getGPUFeatures() {
+                try {
+                    const canvas = document.createElement('canvas');
+                    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                    if (!gl) {
+                        return 'WebGL not supported';
+                    }
+                    const features = {
+                        'Max Texture Size': gl.getParameter(gl.MAX_TEXTURE_SIZE),
+                        'Max Viewport Dimensions': `${gl.getParameter(gl.MAX_VIEWPORT_DIMS)[0]}x${gl.getParameter(gl.MAX_VIEWPORT_DIMS)[1]}`,
+                        'Max Vertex Uniform Vectors': gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS),
+                        'Max Fragment Uniform Vectors': gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS),
+                        'Max Combined Texture Image Units': gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS)
+                    };
+                    return Object.entries(features).map(([key, value]) => `${key}: ${value}`).join(', ');
+                } catch (e) {
+                    console.error('Error getting GPU features:', e);
+                    return 'Error getting GPU features';
+                }
+            }
+
+            // Function to get the list of supported WebGL extensions
+            function getWebGLExtensions() {
+                try {
+                    const canvas = document.createElement('canvas');
+                    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                    if (!gl) {
+                        return 'WebGL not supported';
+                    }
+                    const extensions = gl.getSupportedExtensions();
+                    return extensions.length > 0 ? extensions.join(', ') : 'None';
+                } catch (e) {
+                    console.error('Error getting WebGL extensions:', e);
+                    return 'Error getting WebGL extensions';
+                }
+            }
+
+
+            // Function to get the AudioContext fingerprint
+            function getAudioFingerprint() {
+                return new Promise((resolve) => {
+                    try {
+                        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                        const oscillator = audioCtx.createOscillator();
+                        const analyser = audioCtx.createAnalyser();
+                        const gain = audioCtx.createGain();
+                        const compressor = audioCtx.createDynamicsCompressor();
+
+                        oscillator.type = 'sine';
+                        oscillator.frequency.value = 1000;
+                        oscillator.connect(compressor);
+                        compressor.connect(analyser);
+                        analyser.connect(gain);
+                        gain.connect(audioCtx.destination);
+
+                        oscillator.start();
+                        setTimeout(() => {
+                            oscillator.stop();
+                            const buffer = new Float32Array(analyser.frequencyBinCount);
+                            analyser.getFloatFrequencyData(buffer);
+
+                            let hash = 0;
+                            for (let i = 0; i < buffer.length; i++) {
+                                hash += buffer[i];
+                            }
+                            resolve(hash.toString());
+                        }, 100);
+                    } catch (e) {
+                        console.error('Error generating audio fingerprint:', e);
+                        resolve('Audio fingerprint not available');
+                    }
+                });
+            }
+
+            // Function to detect installed fonts
+            function getFontFingerprint() {
+                const testString = 'mmmmmmmmmmlli';
+                const testSize = '40px';
+                const baseFonts = ['monospace', 'sans-serif', 'serif'];
+                const testFonts = [
+                    'Arial', 'Arial Black', 'Comic Sans MS', 'Courier', 'Courier New', 'Georgia', 'Impact',
+                    'Lucida Grande', 'Tahoma', 'Times', 'Times New Roman', 'Trebuchet MS', 'Verdana',
+                    'Helvetica', 'Futura', 'Baskerville', 'Palatino', 'Garamond', 'Bookman', 'Avant Garde'
+                ];
+
+                const testDiv = document.createElement('div');
+                testDiv.style.position = 'absolute';
+                testDiv.style.left = '-9999px';
+                testDiv.style.top = '-9999px';
+                testDiv.style.fontSize = testSize;
+                testDiv.style.lineHeight = 'normal';
+                testDiv.innerHTML = testString;
+
+                const body = document.body;
+                body.appendChild(testDiv);
+
+                const getWidth = (font) => {
+                    testDiv.style.fontFamily = `'${font}', ${baseFonts[0]}`;
+                    return testDiv.offsetWidth;
+                };
+
+                const installedFonts = [];
+                const baseWidth = getWidth(baseFonts[0]);
+
+                testFonts.forEach(font => {
+                    if (getWidth(font) !== baseWidth) {
+                        installedFonts.push(font);
+                    }
+                });
+
+                body.removeChild(testDiv);
+                return installedFonts.length > 0 ? installedFonts.join(', ') : 'No common fonts detected';
+            }
+
+            // Function to detect if an ad blocker is enabled
+            function isAdBlockerEnabled() {
+                const testDiv = document.createElement('div');
+                testDiv.innerHTML = '&nbsp;';
+                testDiv.className = 'adsbox';
+                document.body.appendChild(testDiv);
+
+                const isBlocked = testDiv.offsetHeight === 0;
+                document.body.removeChild(testDiv);
+                return isBlocked;
+            }
+
+            // Function to get battery status information
+            async function getBatteryInfo() {
+                if ('getBattery' in navigator) {
+                    try {
+                        const battery = await navigator.getBattery();
+                        return `Charging: ${battery.charging}, Level: ${Math.round(battery.level * 100)}%`;
+                    } catch (e) {
+                        return 'Permission denied or not available';
+                    }
+                }
+                return 'Not available';
+            }
+
+            // Function to get WebRTC local and public IP addresses
+            function getWebRTCIPs() {
+                return new Promise((resolve) => {
+                    const rtc = new RTCPeerConnection({ iceServers: [] });
+                    rtc.createDataChannel('');
+                    rtc.createOffer()
+                        .then((offer) => rtc.setLocalDescription(offer))
+                        .catch(err => {
+                            console.error('WebRTC error:', err);
+                            resolve('Error getting IP addresses');
+                        });
+
+                    rtc.onicecandidate = (e) => {
+                        if (!e.candidate) {
+                            rtc.close();
+                            return;
+                        }
+                        const candidate = e.candidate.candidate;
+                        let ipMatch = candidate.match(/([0-9]{1,3}(\.[0-9]{1,3}){3}|[a-f0-9]{1,4}(:[a-f0-9]{1,4}){7})/g);
+                        if (ipMatch) {
+                            resolve(ipMatch.join(', '));
+                        }
+                    };
+                    setTimeout(() => {
+                        resolve('Timed out or not available');
+                    }, 1000);
+                });
+            }
+
+            // Function to get touch support information
+            function getTouchSupport() {
+                const maxTouchPoints = navigator.maxTouchPoints || 0;
+                const touchEvents = ('ontouchstart' in window);
+                return `Max Touch Points: ${maxTouchPoints}, Touch Events: ${touchEvents}`;
+            }
+
+            // Function to get supported mime types
+            function getMimeTypes() {
+                const mimeTypes = [];
+                for (let i = 0; i < navigator.mimeTypes.length; i++) {
+                    mimeTypes.push(navigator.mimeTypes[i].type);
+                }
+                return mimeTypes.length > 0 ? mimeTypes.join(', ') : 'Not available';
+            }
+
+            // Function to generate a simple hash from a string
+            function simpleHash(str) {
+                let hash = 0;
+                for (let i = 0; i < str.length; i++) {
+                    const char = str.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash |= 0; // Convert to 32bit integer
+                }
+                return Math.abs(hash).toString(16);
+            }
+
+            // Function to generate a final unique hash from all data points
+            async function generateFinalHash() {
+                const dataArray = [
+                    navigator.userAgent,
+                    navigator.platform,
+                    navigator.language,
+                    navigator.cookieEnabled.toString(),
+                    (navigator.doNotTrack || 'unknown').toString(),
+                    (navigator.webdriver ? 'true' : 'false'),
+                    `${window.screen.width}x${window.screen.height}`,
+                    `${window.innerWidth}x${window.innerHeight},${window.outerWidth}x${window.outerHeight}`,
+                    `${window.screen.colorDepth}`,
+                    Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    navigator.deviceMemory ? navigator.deviceMemory.toString() : '',
+                    navigator.hardwareConcurrency ? navigator.hardwareConcurrency.toString() : '',
+                    navigator.cpuClass || '',
+                    (isAdBlockerEnabled() ? 'true' : 'false'),
+                    Array.from(navigator.plugins).map(p => p.name).join(','),
+                    getMimeTypes(),
+                    getTouchSupport(),
+                    getFontFingerprint(),
+                    getCanvasFingerprint(),
+                    getWebglVendorAndRenderer(),
+                    getAdvancedWebglFingerprint(),
+                    getWebGLExtensions(),
+                    getGPUFeatures(),
+                    await getAudioFingerprint(),
+                    (await getBatteryInfo()).toString(),
+                    (await getWebRTCIPs()).toString()
+                ];
+
+                const concatenatedString = dataArray.join('|');
+                return simpleHash(concatenatedString);
+            }
+
+            // Get all the data points and display them
+            async function displayFingerprint() {
+                const fingerprintData = {
+                    'User Agent': navigator.userAgent,
+                    'Platform': navigator.platform,
+                    'Language': navigator.language,
+                    'Cookies Enabled': navigator.cookieEnabled,
+                    'Do Not Track': navigator.doNotTrack,
+                    'Web Driver': navigator.webdriver ? 'Yes' : 'No', // Detects automated browsers
+                    'Screen Resolution': `${window.screen.width}x${window.screen.height}`,
+                    'Window Size': `Inner: ${window.innerWidth}x${window.innerHeight}, Outer: ${window.outerWidth}x${window.outerHeight}`,
+                    'Color Depth': `${window.screen.colorDepth} bit`,
+                    'Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    'Device Memory': navigator.deviceMemory ? `${navigator.deviceMemory} GB` : 'Not available',
+                    'Logical CPU Cores': navigator.hardwareConcurrency || 'Not available',
+                    'CPU Class': navigator.cpuClass || 'Not available',
+                    'Ad Blocker Enabled': isAdBlockerEnabled() ? 'Yes' : 'No',
+                    'Plugins': Array.from(navigator.plugins).map(p => p.name).join(', '),
+                    'MIME Types': getMimeTypes(),
+                    'Touch Support': getTouchSupport()
+                };
+
+                for (const [key, value] of Object.entries(fingerprintData)) {
+                    createDataCard(key, value);
+                }
+
+                createDataCard('Installed Fonts (expanded list)', getFontFingerprint());
+                createDataCard('Canvas Fingerprint (Base64)', getCanvasFingerprint());
+                createDataCard('WebGL Vendor & Renderer', getWebglVendorAndRenderer());
+                createDataCard('WebGL Renderer Hash', getAdvancedWebglFingerprint());
+                createDataCard('WebGL Supported Extensions', getWebGLExtensions());
+                createDataCard('GPU Features', getGPUFeatures());
+                createDataCard('Audio Fingerprint', await getAudioFingerprint());
+                createDataCard('Battery Info', await getBatteryInfo());
+                createDataCard('WebRTC IP Addresses', await getWebRTCIPs());
+
+                // Generate and display the final hash
+                const finalHash = await generateFinalHash();
+                document.getElementById('final-hash').textContent = finalHash;
+            }
+
+            // Start the display process
+            displayFingerprint();
+        })();
+    </script>
+</body>
+</html>
